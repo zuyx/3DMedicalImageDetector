@@ -18,7 +18,7 @@ class BaseTrainer(object):
         self.bestLoss = 1000
         self.save_dir = checkpoint_path
         self.lr = lr
-
+        self.save_fq = 10
     def get_lr(self):
         if self.iterations <= self.max_epochs * 1 / 3:  # 0.5:
             lr = self.lr
@@ -34,7 +34,7 @@ class BaseTrainer(object):
         state_dict = self.model.state_dict()
         for key in state_dict.keys():
             state_dict[key] = state_dict[key].cpu()
-        checkpoint_path = self.save_dir + 'detector_%03d.ckpt' % self.iterations
+        checkpoint_path = self.save_dir + '/detector_%03d.ckpt' % self.iterations
         torch.save(
             {'epoch': self.iterations + 1,
              'state_dict': state_dict,
@@ -45,11 +45,11 @@ class BaseTrainer(object):
         )
         print("save model on epoch %d" % self.iterations)
 
-    def load_checkpoint(self, resume_dir, loadOptimizer):
-        if resume_dir is not None:
+    def load_checkpoint(self, resume, loadOptimizer):
+        if resume is not None:
             print("loading checkpoint...")
             model_dict = self.model.state_dict()
-            modelCheckpoint = torch.load(resume_dir)
+            modelCheckpoint = torch.load(resume)
             pretrained_dict = modelCheckpoint['state_dict']
             # 过滤操作
             new_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict.keys()}
@@ -78,9 +78,13 @@ class BaseTrainer(object):
         for epoch in range(start_epoch, self.max_epochs + 1):
             self.epoch_train()
             valiloss = self.validate()
+            print("bestLoss:", self.bestLoss)
             if self.bestLoss >= valiloss:
                 self.bestLoss = valiloss
                 self.save()
+            elif self.iterations % self.save_fq ==0:
+                self.save()
+            print("bestLoss:",self.bestLoss)
             self.iterations += 1
     def debug(self):
         print("--------------------start debug for parameters----------------")
@@ -408,5 +412,18 @@ class AnchorBasedTrainer(BaseTrainer):
                 return data,fmap,output,target
 
 if __name__ == '__main__':
-    pass
+    import os
+    dir = '/home/ren/zyx/Lesion/NoduleDetector/detectorv2/EXP_RES'
+    files = [os.path.join(dir,f) for f in os.listdir(dir) if f.endswith('.ckpt')]
+    l = len('detector_024.ckpt')
+    #print(l)
+    #print(files[0].split('/')[-1][-l:])
+
+    for f in files:
+        name = f.split('/')[-1][-l:]
+        os.rename(f,dir + '/resunet-20210730-154315/' + name)
+    dir = dir + '/resunet-20210730-154315/'
+    files = [os.path.join(dir,f) for f in os.listdir(dir)]
+    print(files)
+
 

@@ -1,0 +1,27 @@
+
+************************************************************
+CAD Analysis: th-0.2-res18_se_rig_fold6predanno0.3
+************************************************************
+
+Candidate detection results:
+    True positives: 97
+    False positives: 232
+    False negatives: 8
+    True negatives: 0
+    Total number of candidates（包含Excluded Nodule以及重复检测的Nodules）: 623
+    Total number of nodules: 105
+    Ignored candidates on excluded nodules: 243
+    Ignored candidates which were double detections on a nodule: 51
+    Sensitivity: 0.923809524
+    Average number of candidates per scan（for 3D images  a patient a scan）: 7.079545455
+
+##########################
+    Sens    FROC
+    0.70074    0.125
+    0.77965    0.250
+    0.84005    0.500
+    0.89794    1.000
+    0.91970    2.000
+    0.92549    4.000
+    0.92549    8.000
+    meansens    0.8555815815925598

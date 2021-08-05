@@ -6,7 +6,7 @@ class Process:
         self.eps = 1e6
         self.max_num_bboxes = config['top_k'] # 100该如何设置？
         self.stride = config['stride']
-    '''
+
     def isPeak(self,p,submap):
         submap = submap.ravel()
         cnt = 0
@@ -31,7 +31,7 @@ class Process:
                         centers.append(np.array([heatmap[i,j,k],j,k,i,0]))
         idxs = np.argsort(centers[:,0])[:self.max_num_bboxes]
         return centers[idxs]
-    def get_bbox(self,output):
+    def get_pbb(self,output):
         heatmap,offset,diam = output
         bboxes = self.get_centers(heatmap)
         idxs = []
@@ -42,7 +42,7 @@ class Process:
                 bboxes[-1] = diam[z,x,y]
                 idxs.append(i)
         return bboxes[idxs]
-    '''
+
 
     def _gather_feature(self,feat,ind,mask=None):
         '''
@@ -87,27 +87,35 @@ def _nms(hmap,kernel_size = 3):
     :param kernel_size:
     :return:
     '''
-    peak = F.max_pool3d(hmap, kernel = kernel_size,stride = 1, padding = (kernel_size-1) // 2)
+    #print("hmap:",hmap)
+    hmap = hmap.unsqueeze(dim=0).unsqueeze(dim=0)
+    peak = F.max_pool3d(hmap, kernel_size = kernel_size,stride = 1, padding = (kernel_size-1) // 2)
+    print("peak:",peak)
     mask = (hmap == peak).float()
-    return hmap * mask
+    print(mask.size())
+    return (hmap * mask).squeeze(dim=0).squeeze(dim=0)
 
-
-def get_pbb(hmap, offset, diam, stride=4,threshold = 0.9 ):
-    mask = (_nms(hmap) > threshold).int()  # (hmap > 0.95).int()
+def get_pbb(output, stride=4,threshold = -3):
+    #depth,height,width = output.size(0),output.size(1),output.size(2)
+    hmap = output[:,:,:,0]
+    offset = output[:,:,:,1:4]
+    diam = output[:,:,:,4]
+    _hmap = torch.from_numpy(hmap)
+    mask = (_nms(_hmap).int() > threshold).int()
     inds = torch.nonzero(mask)
-    print(inds)
     preds = []
     for ind in inds:
-        n, z, x, y, c = ind
-        ofz = offset[n][z][x][y][0]
-        ofx = offset[n][z][x][y][1]
-        ofy = offset[n][z][x][y][2]
+        z, x, y = ind
+        ofz = offset[z][x][y][0]
+        ofx = offset[z][x][y][1]
+        ofy = offset[z][x][y][2]
         oz = (z + ofz) * stride
         ox = (x + ofx) * stride
         oy = (y + ofy) * stride
-        d = diam[n][z][x][y][c]
-        prob = hmap[n][z][x][y][c]
-        preds.append([prob,oz, ox, oy, d])
+        d = diam[z][x][y]
+        prob = hmap[z][x][y]
+        preds.append([prob,oz.item(), ox.item(), oy.item(), d])
+    print("preds:",preds)
     return preds
 
 
@@ -115,13 +123,21 @@ def get_pbb(hmap, offset, diam, stride=4,threshold = 0.9 ):
 
 
 
-
+import collections
+def collate(batch):
+    if torch.is_tensor(batch[0]):
+        return [b.unsqueeze(0) for b in batch]
+    elif isinstance(batch[0], np.ndarray):
+        return batch
+    elif isinstance(batch[0], int):
+        return torch.LongTensor(batch)
+    elif isinstance(batch[0], collections.Iterable):
+        transposed = zip(*batch)
+        return [collate(samples) for samples in transposed]
 
 
 if __name__ == '__main__':
-    data = [83, 86, 77, 15, 93, 35, 86, 92, 49, 21, 62, 27, 90, 59, 63, 26, 40, 26, 72, 36, 11, 68, 67, 29, 82, 30, 62,
-            23, 67, 35, 29, 2, 22, 58, 69, 67, 93, 56, 11, 42, 29, 73, 21, 19, 84, 37, 98, 24, 15, 70, 13, 26, 91, 80,
-            56, 73, 62, 70, 96, 81, 5, 25, 84, 27, 36, 5, 46, 29, 13, 57, 24, 95, 82, 45, 14, 67, 34, 64, 43, 50, 87, 8,
-            76, 78, 88, 84, 3, 51, 54, 99, 32, 60, 76, 68, 39, 12, 26, 86, 94, 39]
-    data.sort()
+    data = torch.rand((2,2,2,1))
     print(data)
+    out = F.max_pool3d(data,kernel_size = 3, padding = 1, stride = 1)
+    print(out)

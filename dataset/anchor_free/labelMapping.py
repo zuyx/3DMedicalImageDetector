@@ -121,7 +121,7 @@ def paint_heatmap(heatmap):
 
 
 import torch
-debug = True
+debug = False
 
 class LabelMapping(object):
     def __init__(self, config, phase):

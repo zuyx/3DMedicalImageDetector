@@ -9,6 +9,10 @@ margin = 16,
 config['pad_value'] = 1
 )
 '''
+
+'''
+just for anchor free model output for the present
+'''
 class SplitComb():
     def __init__(self,side_len,max_stride,stride,margin,pad_value):
         self.side_len = side_len # ?
@@ -36,8 +40,8 @@ class SplitComb():
         nw = int(np.ceil(float(w) / side_len))
         
         nzhw = [nz,nh,nw] # 每个维度有多个splits
+
         self.nzhw = nzhw
-        
         pad = [ [0, 0],
                 [margin, nz * side_len - z + margin],# 上界扩充margin个pixel，下界扩充nz*sidelen - z + margin 个pixel ，即将data的形状扩充成恰好可以被side_len整除且+margin的形状
                 [margin, nh * side_len - h + margin],#32,
@@ -49,21 +53,21 @@ class SplitComb():
             for ih in range(nh):
                 for iw in range(nw):
                     sz = iz * side_len # left_z
-                    ez = (iz + 1) * side_len + 2 * margin # right_z
+                    ez = (iz + 1) * side_len + 2 * margin # right_z # (128 + 16*2 = 160)
                     sh = ih * side_len # left_h
                     eh = (ih + 1) * side_len + 2 * margin # right_h
                     sw = iw * side_len # left_w
                     ew = (iw + 1) * side_len + 2 * margin # right_w
-
                     split = data[np.newaxis, :, sz:ez, sh:eh, sw:ew]
                     splits.append(split)
-
+                    #print("slpit shape:",split.shape)
         splits = np.concatenate(splits, 0)
+
         return splits,nzhw
 
     def combine(self, output, nzhw = None, side_len=None, stride=None, margin=None):
         '''
-        :param output: 模型的输出，输出形状为(sides_num,C,side_len//stride,side_len//stride,side_len//stride)
+        :param output: 模型的输出，输出形状为(side_len//stride,side_len//stride,side_len//stride,C)
         :param nzhw: 每个维度有多少个side
         :param side_len:
         :param stride:下采样因子
@@ -86,20 +90,20 @@ class SplitComb():
         assert(margin % stride == 0)
         # print('side_len, stride, margin',side_len, stride, margin)#160 4 16
         # print('nz, nh, nw',nz, nh, nw)#2 2 2 
-        side_len //= stride
-        margin //= stride
+        side_len //= stride # 32
+        margin //= stride # 4
 
         splits = []
         for i in range(len(output)):
             splits.append(output[i])
-
+        #print("splits:",splits)
         output = -1000000 * np.ones((
             nz * side_len,
             nh * side_len,
             nw * side_len,
-            splits[0].shape[3],
-            splits[0].shape[4]), np.float32)
+            splits[0].shape[3]), np.float32)
         # print('ONES-output',output.shape, nzhw)
+
         idx = 0
         for iz in range(nz):
             for ih in range(nh):
@@ -110,11 +114,12 @@ class SplitComb():
                     eh = (ih + 1) * side_len
                     sw = iw * side_len
                     ew = (iw + 1) * side_len
-                    split = splits[idx][margin:margin + side_len, margin:margin + side_len, margin:margin + side_len]
+                    split = splits[idx][margin:margin + side_len, margin:margin + side_len, margin:margin + side_len] # [4:36]
+                    #print("split:",split)
+                    #print("split shape:",split.shape)
                     output[sz:ez, sh:eh, sw:ew] = split
                     idx += 1
-
-        return output 
+        return output
 
 
 if __name__ == '__main__':
