@@ -210,6 +210,21 @@ class LabelMapping(object):
             }
 
 
+class OneToOneLabelMapping(object):
+    def __init__(self, config, phase):
+        self.stride = np.array(config['stride'])
+        self.n_classes = 1
+        self.phase = phase
+        self.gaussian_iou = 0.7
+        self.fmap_size = [size // self.stride for size in config['crop_size']]  # (d,h,w)
+        self.max_objs = max(self.fmap_size)
+        self.crop_size = config['crop_size']
+
+    def __call__(self, target, bboxes, labels):
+        pass
+
+
+
 
 
 if __name__ == '__main__':
