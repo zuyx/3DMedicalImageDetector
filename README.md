@@ -1,2 +1,2 @@
 # 3DMedicalImageDetector
-The repoitory is my ongoing research promgram for meidical imaging detection.
+The repoitory is my ongoing research program for meidical imaging detection.
